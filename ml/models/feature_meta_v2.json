@@ -1,0 +1,318 @@
+{
+  "model_name": "RansomShield AI Behavioral Classifier (Real Sysmon Telemetry)",
+  "model_version": "xgb_ransomware_v2",
+  "created_at": "2026-09-18T08:26:00.078093+00:00",
+  "framework": "xgboost-3.3.0",
+  "random_seed": 42,
+  "dataset_info": {
+    "name": "CSU-Ransomware-Data",
+    "source": "https://github.com/CSCRC-SCREED/CSU-Ransomware-Data",
+    "total_samples": 36485,
+    "training_samples": 29188,
+    "test_samples": 7297
+  },
+  "feature_contract": {
+    "version": "v2",
+    "dataset_name": "CSU-Ransomware-Data (SCReeD)",
+    "source": "https://github.com/CSCRC-SCREED/CSU-Ransomware-Data",
+    "features": [
+      {
+        "name": "File_Delete_archived",
+        "description": "Sysmon Event 23/26 indicator for file deletion and archiving operations.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 23 (FileDelete) or Event 26 (FileDeleteDetected)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Microsoft-Windows-Sysmon/Operational",
+        "category": "File Activity"
+      },
+      {
+        "name": "File_created",
+        "description": "Sysmon Event 11 indicator for file creation operations.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 11 (FileCreate)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Sysmon Event 11",
+        "category": "File Activity"
+      },
+      {
+        "name": "File_creation_time_changed",
+        "description": "Sysmon Event 2 indicator for file creation time alteration (timestomping).",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 2 (FileCreateTime)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Sysmon Event 2",
+        "category": "File Activity"
+      },
+      {
+        "name": "Pipe_Created",
+        "description": "Sysmon Event 17/18 indicator for named pipe creation and connection.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 17 (PipeCreated) or 18 (PipeConnected)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Sysmon Event 17/18",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "Process_Create",
+        "description": "Sysmon Event 1 indicator for new process execution.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 1 (ProcessCreate)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Sysmon Event 1 or psutil process listener",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "Registry_value_set",
+        "description": "Sysmon Event 13 indicator for registry key modification.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 13 (RegistryValueSet)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via win32evtlog to Sysmon Event 13",
+        "category": "System Behavior"
+      },
+      {
+        "name": "process-related",
+        "description": "Aggregate indicator flag for process lifecycle operations.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DERIVED",
+        "calculation": "Aggregated count of process-related Sysmon events in time window",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Aggregated in agent sliding window buffer",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "network-related",
+        "description": "Sysmon Event 3 indicator for outbound network connections.",
+        "data_type": "int64",
+        "source": "Sysmon",
+        "classification": "DIRECT",
+        "calculation": "Sysmon Event ID 3 (NetworkConnect) or psutil.net_connections()",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Subscribed via Sysmon Event 3",
+        "category": "Network Behavior"
+      },
+      {
+        "name": "file-related",
+        "description": "Aggregate indicator flag for file I/O operations.",
+        "data_type": "int64",
+        "source": "watchdog",
+        "classification": "DERIVED",
+        "calculation": "Aggregated count of file-related events in time window",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Aggregated via watchdog / Sysmon event queues",
+        "category": "File Activity"
+      },
+      {
+        "name": "suspicious_path",
+        "description": "Binary flag (1/0) indicating process execution from user writable or temporary paths (AppData/Temp/Downloads).",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "1 if exe path starts with AppData, Temp, Downloads or Users directory else 0",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Evaluated from psutil.Process(pid).exe()",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "system_executable",
+        "description": "Binary flag (1/0) indicating process execution from Windows System directories.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "1 if exe path starts with C:\\Windows\\System32 else 0",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Evaluated from psutil.Process(pid).exe()",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "path_length",
+        "description": "Character string length of the executable path.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "len(psutil.Process(pid).exe())",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from psutil.Process(pid).exe()",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "directory_depth",
+        "description": "Nesting depth (count of path separators) of the executable directory.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "path.count('\\')",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from psutil process path string",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "process_name_length",
+        "description": "Character string length of the process binary name.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "len(psutil.Process(pid).name())",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from psutil.Process(pid).name()",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "process_vs_parent_freq_ratio",
+        "description": "Relative execution frequency ratio between candidate process and parent process.",
+        "data_type": "float64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "freq(child_proc) / freq(parent_proc)",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from agent process history table",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "executable_depth_diff",
+        "description": "Directory nesting depth difference between parent process and child process.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "abs(depth(child_exe) - depth(parent_exe))",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from psutil parent-child process tree",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "parent_is_system_executable",
+        "description": "Binary flag (1/0) indicating whether the parent process is a verified system binary.",
+        "data_type": "int64",
+        "source": "psutil",
+        "classification": "DERIVED",
+        "calculation": "1 if parent exe is in C:\\Windows\\System32 else 0",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from psutil parent process inspection",
+        "category": "Process Behavior"
+      },
+      {
+        "name": "extension_similarity",
+        "description": "Metric indicating file extension similarity or transformation pattern.",
+        "data_type": "int64",
+        "source": "watchdog",
+        "classification": "DERIVED",
+        "calculation": "1 if file rename alters original extension to non-standard suffix else 0",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated from watchdog FileMovedEvent extension delta",
+        "category": "File Activity"
+      },
+      {
+        "name": "file_name_entropy",
+        "description": "Shannon entropy of touched file name and path strings.",
+        "data_type": "float64",
+        "source": "watchdog",
+        "classification": "DERIVED",
+        "calculation": "Shannon entropy calculated on file path strings",
+        "training_availability": "Present in CSU-Ransomware-Data",
+        "live_agent_availability": "Calculated via Shannon entropy on watchdog file event paths",
+        "category": "File Activity"
+      }
+    ],
+    "feature_names": [
+      "File_Delete_archived",
+      "File_created",
+      "File_creation_time_changed",
+      "Pipe_Created",
+      "Process_Create",
+      "Registry_value_set",
+      "process-related",
+      "network-related",
+      "file-related",
+      "suspicious_path",
+      "system_executable",
+      "path_length",
+      "directory_depth",
+      "process_name_length",
+      "process_vs_parent_freq_ratio",
+      "executable_depth_diff",
+      "parent_is_system_executable",
+      "extension_similarity",
+      "file_name_entropy"
+    ],
+    "feature_count": 19,
+    "label_mapping": {
+      "0": "Goodware",
+      "1": "Ransomware"
+    }
+  },
+  "feature_names": [
+    "File_Delete_archived",
+    "File_created",
+    "File_creation_time_changed",
+    "Pipe_Created",
+    "Process_Create",
+    "Registry_value_set",
+    "process-related",
+    "network-related",
+    "file-related",
+    "suspicious_path",
+    "system_executable",
+    "path_length",
+    "directory_depth",
+    "process_name_length",
+    "process_vs_parent_freq_ratio",
+    "executable_depth_diff",
+    "parent_is_system_executable",
+    "extension_similarity",
+    "file_name_entropy"
+  ],
+  "feature_count": 19,
+  "label_mapping": {
+    "0": "Goodware",
+    "1": "Ransomware"
+  },
+  "hyperparameters": {
+    "n_estimators": 140,
+    "max_depth": 5,
+    "learning_rate": 0.08,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "min_child_weight": 2,
+    "gamma": 0.1,
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "random_state": 42,
+    "tree_method": "hist"
+  },
+  "evaluation_metrics": {
+    "evaluation_type": "HISTORICAL REAL TELEMETRY EVALUATION",
+    "dataset_name": "CSU-Ransomware-Data (SCReeD)",
+    "evaluation_timestamp": "2026-09-18T08:26:00.066464+00:00",
+    "accuracy": 95.96,
+    "precision": 83.2,
+    "recall": 93.88,
+    "f1_score": 88.21,
+    "roc_auc": 99.25,
+    "cv_f1_mean": 87.38,
+    "cv_f1_std": 1.01,
+    "confusion_matrix": [
+      [
+        5898,
+        223
+      ],
+      [
+        72,
+        1104
+      ]
+    ]
+  },
+  "disclaimer": "Metrics represent evaluation on historical Windows Sysmon dynamic analysis telemetry."
+}

@@ -1,0 +1,54 @@
+{
+  "model_name": "RansomShield AI Behavioral Classifier (Synthetic Benchmark)",
+  "model_version": "xgb_ransomware_v1",
+  "created_at": "2026-08-29T16:53:30.599855+00:00",
+  "feature_contract": {
+    "version": "v1",
+    "dataset_name": "Synthetic Prototype Benchmark",
+    "feature_names": [
+      "file_modification_rate",
+      "file_rename_rate",
+      "file_deletion_rate",
+      "write_entropy_avg",
+      "high_entropy_ratio",
+      "cpu_usage_pct",
+      "memory_usage_pct",
+      "process_creation_rate",
+      "unsigned_proc_ratio",
+      "registry_write_rate",
+      "network_connection_count",
+      "shadow_copy_tamper"
+    ],
+    "feature_count": 12,
+    "label_mapping": {
+      "0": "BENIGN",
+      "1": "SUSPICIOUS",
+      "2": "RANSOMWARE"
+    }
+  },
+  "feature_names": [
+    "file_modification_rate",
+    "file_rename_rate",
+    "file_deletion_rate",
+    "write_entropy_avg",
+    "high_entropy_ratio",
+    "cpu_usage_pct",
+    "memory_usage_pct",
+    "process_creation_rate",
+    "unsigned_proc_ratio",
+    "registry_write_rate",
+    "network_connection_count",
+    "shadow_copy_tamper"
+  ],
+  "feature_count": 12,
+  "label_mapping": {
+    "0": "BENIGN",
+    "1": "SUSPICIOUS",
+    "2": "RANSOMWARE"
+  },
+  "evaluation_metrics": {
+    "evaluation_type": "SYNTHETIC BENCHMARK EVALUATION",
+    "accuracy": 99.96,
+    "f1_score_macro": 99.94
+  }
+}

@@ -1,0 +1,73 @@
+version: "3.8"
+
+# RansomShield AI — Production & Deployment Compose Stack
+# Phase 5: Production Hardening & Deployment Readiness
+#
+# Services:
+#   - mongodb: Secure persistent database store
+#   - backend: FastAPI REST & WebSocket SOC management service
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ransomshield-mongodb
+    restart: unless-stopped
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-ransomshield_db}
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ransomshield-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ransomshield-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-ransomshield_db}
+      - DATABASE_BACKEND=mongodb
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - AGENT_API_KEY=${AGENT_API_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    volumes:
+      - quarantine_data:/app/data/quarantine
+      - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ransomshield-net
+
+volumes:
+  mongodb_data:
+    driver: local
+  quarantine_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  ransomshield-net:
+    driver: bridge
